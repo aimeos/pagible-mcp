@@ -47,7 +47,6 @@ class AddPage extends Tool
             'name' => 'required|string|max:50',
             'title' => 'required|string|max:100',
             'content' => 'required|array',
-            'content.*.id' => 'string|max:10',
             'content.*.type' => 'required|string|max:50',
             'content.*.group' => 'string|max:50',
             'content.*.data' => 'required|array',
@@ -113,6 +112,7 @@ class AddPage extends Tool
         $page = Resource::addPage(
             $input,
             $request->user(),
+            Utils::editor( $request->user() ),
             $v['files'] ?? [],
             $v['elements'] ?? [],
             $v['ref'] ?? null,
@@ -143,8 +143,6 @@ class AddPage extends Tool
                 ->required(),
             'content' => $schema->array()
                 ->items( $schema->object( [
-                    'id' => $schema->string()
-                        ->description( 'Optional element ID. Auto-generated if omitted.' ),
                     'type' => $schema->string()
                         ->description( 'Content element type. Use get-schemas for available types.' )
                         ->required(),
