@@ -40,13 +40,16 @@ class DropElement extends Tool
             'id.required' => 'You must specify the ID of the element to delete.',
         ] );
 
-        $items = Resource::drop( Element::class, [$v['id']], Utils::editor( $request->user() ) );
+        /** @var Element|null $element */
+        $element = Element::withTrashed()->find( $v['id'] );
 
-        if( $items->isEmpty() ) {
+        if( !$element ) {
             return Response::structured( ['error' => 'Element not found.'] );
         }
 
-        return Response::structured( $items->first()->toArray() );
+        $items = Resource::drop( Element::class, [$v['id']], Utils::editor( $request->user() ) );
+
+        return Response::structured( $items->firstOrFail()->toArray() );
     }
 
 

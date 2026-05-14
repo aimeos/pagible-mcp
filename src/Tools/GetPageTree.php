@@ -10,7 +10,6 @@ namespace Aimeos\Cms\Tools;
 use Aimeos\Cms\Permission;
 use Aimeos\Cms\Models\Page;
 use Aimeos\Cms\Models\Nav;
-use Aimeos\Nestedset\NestedSet;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 use Laravel\Mcp\Server\Tools\Annotations\IsOpenWorld;
@@ -42,9 +41,7 @@ class GetPageTree extends Tool
             'lang' => 'string|max:5',
         ]);
 
-        $builder = Page::tree( $v['node_id'] ?? null )
-            ->select( 'id', 'parent_id', 'tenant_id', 'lang', 'latest_id', NestedSet::LFT, NestedSet::RGT, NestedSet::DEPTH )
-            ->with( ['latest' => fn( $q ) => $q->select( 'id', 'versionable_id', 'data' )] );
+        $builder = Page::tree( $v['node_id'] ?? null );
 
         if( !isset( $v['node_id'] ) && isset( $v['lang'] ) ) {
             $builder->where( 'lang', $v['lang'] );
@@ -99,19 +96,14 @@ class GetPageTree extends Tool
         foreach( $nodes as $node )
         {
             /** @var Nav $node */
-            $data = $node->latest?->data;
             $entry = [
                 'id' => $node->id,
-                'name' => $data->name ?? '',
-                'title' => $data->title ?? '',
-                'domain' => $data->domain ?? '',
-                'path' => $data->path ?? '',
-                'lang' => $data->lang ?? '',
-                'cache' => $data->cache ?? 0,
-                'status' => $data->status ?? 0,
-                'type' => $data->type ?? '',
-                'tag' => $data->tag ?? '',
-                'to' => $data->to ?? '',
+                'name' => $node->name,
+                'title' => $node->title,
+                'path' => $node->path,
+                'lang' => $node->lang,
+                'status' => $node->status,
+                'type' => $node->type,
                 'children' => [],
             ];
 

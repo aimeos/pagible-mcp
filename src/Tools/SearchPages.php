@@ -10,7 +10,6 @@ namespace Aimeos\Cms\Tools;
 use Aimeos\Cms\Filter;
 use Aimeos\Cms\Permission;
 use Aimeos\Cms\Models\Page;
-use Aimeos\Nestedset\NestedSet;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 use Laravel\Mcp\Server\Tools\Annotations\IsOpenWorld;
@@ -55,23 +54,19 @@ class SearchPages extends Tool
         ] );
 
         $search = Page::search( mb_substr( trim( (string) ( $v['term'] ?? '' ) ), 0, 200 ) )
-            ->query( fn( $q ) => $q->select( 'cms_pages.id', 'cms_pages.parent_id', 'cms_pages.path', 'cms_pages.created_at', 'cms_pages.updated_at', 'cms_pages.deleted_at', 'cms_pages.latest_id', NestedSet::LFT, NestedSet::RGT )
-            ->with( ['latest' => fn( $q ) => $q->select( 'id', 'versionable_id', 'data', 'lang', 'editor' )] ) )
+            ->query( fn( $q ) => $q->with( 'latest' ) )
             ->searchFields( 'draft' )
             ->take( 25 );
 
-        $result = [];
-
-        foreach( Filter::pages( $search, $v )->get() as $item )
-        {
+        $result = Filter::pages( $search, $v )->get()->map( function( $item ) {
             /** @var Page $item */
-            $latest = $item->latest;
-            $data = $latest->data ?? new \stdClass();
-            $result[] = [
+            $data = $item->latest->data ?? new \stdClass();
+            return [
                 'id' => $item->id,
                 'has_children' => $item->has,
                 'parent_id' => $item->parent_id,
                 'tag' => $data->tag ?? null,
+                'lang' => $item->latest?->lang,
                 'path' => $data->path ?? null,
                 'domain' => $data->domain ?? null,
                 'to' => $data->to ?? null,
@@ -81,16 +76,15 @@ class SearchPages extends Tool
                 'theme' => $data->theme ?? null,
                 'status' => $data->status ?? null,
                 'cache' => $data->cache ?? null,
-                'lang' => $latest?->lang,
-                'editor' => $latest?->editor,
+                'editor' => $item->latest?->editor,
                 'deleted' => $item->trashed(),
                 'created_at' => $item->created_at?->format( 'Y-m-d H:i:s' ),
                 'updated_at' => $item->updated_at?->format( 'Y-m-d H:i:s' ),
                 'url' => route( 'cms.page', ['path' => $data->path ?? ''] ),
             ];
-        }
+        } );
 
-        return Response::structured( ['pages' => $result] );
+        return Response::structured( ['pages' => $result->all()] );
     }
 
 

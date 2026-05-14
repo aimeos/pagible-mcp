@@ -47,11 +47,10 @@ class PublishElement extends Tool
 
         $ids = (array) $v['id'];
         $editor = Utils::editor( $request->user() );
-        $items = Resource::publish( Element::class, $ids, $editor, $v['at'] ?? null, [
-            'latest.files' => fn( $q ) => $q->select( 'cms_files.id' )
-        ] );
+        $items = Resource::publish( Element::class, $ids, $editor, $v['at'] ?? null, ['latest.files'] );
 
-        $published = $skipped = [];
+        $published = [];
+        $skipped = [];
 
         foreach( $items as $item )
         {

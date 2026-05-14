@@ -40,13 +40,16 @@ class DropFile extends Tool
             'id.required' => 'You must specify the ID of the file to delete.',
         ] );
 
-        $items = Resource::drop( File::class, [$v['id']], Utils::editor( $request->user() ) );
+        /** @var File|null $file */
+        $file = File::withTrashed()->find( $v['id'] );
 
-        if( $items->isEmpty() ) {
+        if( !$file ) {
             return Response::structured( ['error' => 'File not found.'] );
         }
 
-        return Response::structured( $items->first()->toArray() );
+        $items = Resource::drop( File::class, [$v['id']], Utils::editor( $request->user() ) );
+
+        return Response::structured( $items->firstOrFail()->toArray() );
     }
 
 
