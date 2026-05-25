@@ -35,7 +35,7 @@ class AddPage extends Tool
     public function handle( Request $request ): \Laravel\Mcp\ResponseFactory
     {
         if( !Permission::can( 'page:add', $request->user() ) ) {
-            throw new \Exception( 'Insufficient permissions' );
+            throw new \Aimeos\Cms\Exception( 'Insufficient permissions' );
         }
 
         if( $this->numcalls > 0 ) {
@@ -47,6 +47,7 @@ class AddPage extends Tool
             'name' => 'required|string|max:50',
             'title' => 'required|string|max:100',
             'content' => 'required|array',
+            'content.*.id' => 'string|max:10',
             'content.*.type' => 'required|string|max:50',
             'content.*.group' => 'string|max:50',
             'content.*.data' => 'required|array',
@@ -86,7 +87,12 @@ class AddPage extends Tool
         $pid = $v['parent_id'] ?? null;
 
         /** @var Page|null $parent */
-        $parent = $pid ? Page::withTrashed()->with( 'latest' )->find( $pid ) : null;
+        $parent = $pid
+            ? Page::withTrashed()
+                ->select( 'id', 'latest_id', 'lang' )
+                ->with( ['latest' => fn( $q ) => $q->select( 'id', 'versionable_id', 'data' )] )
+                ->find( $pid )
+            : null;
 
         $v['path'] = $v['path'] ?? Utils::slugify( $v['title'] );
         $v['domain'] = $v['domain'] ?? $parent?->latest?->data->domain ?? '';
@@ -112,7 +118,6 @@ class AddPage extends Tool
         $page = Resource::addPage(
             $input,
             $request->user(),
-            Utils::editor( $request->user() ),
             $v['files'] ?? [],
             $v['elements'] ?? [],
             $v['ref'] ?? null,
@@ -143,6 +148,8 @@ class AddPage extends Tool
                 ->required(),
             'content' => $schema->array()
                 ->items( $schema->object( [
+                    'id' => $schema->string()
+                        ->description( 'Optional element ID. Auto-generated if omitted.' ),
                     'type' => $schema->string()
                         ->description( 'Content element type. Use get-schemas for available types.' )
                         ->required(),

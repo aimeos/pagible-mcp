@@ -9,23 +9,17 @@ namespace Tests;
 
 use Aimeos\Cms\Mcp\CmsServer;
 use Aimeos\Cms\Models\Page;
-use Illuminate\Foundation\Testing\DatabaseTruncation;
-use Illuminate\Foundation\Testing\RefreshDatabaseState;
+use Database\Seeders\TestSeeder;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 
 
 class PageToolsTest extends McpTestAbstract
 {
     use CmsWithMigrations;
-    use DatabaseTruncation;
+    use RefreshDatabase;
 
-    protected $connectionsToTransact = [];
-
-
-    protected function beforeTruncatingDatabase(): void
-    {
-        // In-memory SQLite databases don't persist across test classes
-        RefreshDatabaseState::$migrated = false;
-    }
+    protected $seeder = TestSeeder::class;
 
 
     protected function setUp(): void
@@ -45,7 +39,6 @@ class PageToolsTest extends McpTestAbstract
 
     public function testGetPage()
     {
-        $this->seed( \Database\Seeders\CmsSeeder::class );
         $page = Page::where( 'name', 'Home' )->first();
 
         $response = CmsServer::actingAs($this->user)->tool( \Aimeos\Cms\Tools\GetPage::class, [
@@ -58,13 +51,29 @@ class PageToolsTest extends McpTestAbstract
 
     public function testGetPageByPath()
     {
-        $this->seed( \Database\Seeders\CmsSeeder::class );
-
         $response = CmsServer::actingAs($this->user)->tool( \Aimeos\Cms\Tools\GetPage::class, [
             'path' => 'blog',
         ] );
 
         $response->assertOk()->assertSee( ['Blog', 'Blog | Laravel CMS'] );
+    }
+
+
+    public function testGetPageByEmptyPath()
+    {
+        $response = CmsServer::actingAs($this->user)->tool( \Aimeos\Cms\Tools\GetPage::class, [
+            'path' => '',
+        ] );
+
+        $response->assertOk()->assertSee( ['Home'] );
+    }
+
+
+    public function testGetPageMissingParams()
+    {
+        $this->expectException( \Aimeos\Cms\Exception::class );
+
+        CmsServer::actingAs($this->user)->tool( \Aimeos\Cms\Tools\GetPage::class, [] );
     }
 
 
@@ -80,8 +89,6 @@ class PageToolsTest extends McpTestAbstract
 
     public function testGetPageTree()
     {
-        $this->seed( \Database\Seeders\CmsSeeder::class );
-
         $response = CmsServer::actingAs($this->user)->tool( \Aimeos\Cms\Tools\GetPageTree::class, [
             'lang' => 'en',
         ] );
@@ -92,7 +99,6 @@ class PageToolsTest extends McpTestAbstract
 
     public function testGetPageHistory()
     {
-        $this->seed( \Database\Seeders\CmsSeeder::class );
         $page = Page::where( 'name', 'Home' )->first();
 
         $response = CmsServer::actingAs($this->user)->tool( \Aimeos\Cms\Tools\GetPageHistory::class, [
@@ -135,8 +141,6 @@ class PageToolsTest extends McpTestAbstract
 
     public function testSearchPagesNoTerm()
     {
-        $this->seed( \Database\Seeders\CmsSeeder::class );
-
         $response = CmsServer::actingAs($this->user)->tool( \Aimeos\Cms\Tools\SearchPages::class, [
             'lang' => 'en',
         ] );
@@ -147,8 +151,6 @@ class PageToolsTest extends McpTestAbstract
 
     public function testSearchPagesFilterStatus()
     {
-        $this->seed( \Database\Seeders\CmsSeeder::class );
-
         $response = CmsServer::actingAs($this->user)->tool( \Aimeos\Cms\Tools\SearchPages::class, [
             'status' => 0,
         ] );
@@ -159,8 +161,9 @@ class PageToolsTest extends McpTestAbstract
 
     public function testSearchPages()
     {
-        $this->seed( \Database\Seeders\CmsSeeder::class );
-        sleep( 5 ); // Wait for SQL Server to update fulltext index
+        if( DB::connection( config( 'cms.db' ) )->getDriverName() === 'sqlsrv' ) {
+            sleep( 5 );
+        }
 
         $response = CmsServer::actingAs($this->user)->tool( \Aimeos\Cms\Tools\SearchPages::class, [
             'lang' => 'en',
@@ -202,7 +205,6 @@ class PageToolsTest extends McpTestAbstract
 
     public function testAddPageWithParent()
     {
-        $this->seed( \Database\Seeders\CmsSeeder::class );
         $parent = Page::where( 'name', 'Home' )->first();
 
         $response = CmsServer::actingAs($this->user)->tool( \Aimeos\Cms\Tools\AddPage::class, [
@@ -260,7 +262,7 @@ class PageToolsTest extends McpTestAbstract
 
     public function testAddPageInvalidContentType()
     {
-        $this->expectException( \InvalidArgumentException::class );
+        $this->expectException( \Aimeos\Cms\Exception::class );
 
         CmsServer::actingAs($this->user)->tool( \Aimeos\Cms\Tools\AddPage::class, [
             'lang' => 'en',
@@ -278,7 +280,6 @@ class PageToolsTest extends McpTestAbstract
 
     public function testSavePage()
     {
-        $this->seed( \Database\Seeders\CmsSeeder::class );
         $page = Page::where( 'name', 'Home' )->first();
 
         $response = CmsServer::actingAs($this->user)->tool( \Aimeos\Cms\Tools\SavePage::class, [
@@ -304,7 +305,6 @@ class PageToolsTest extends McpTestAbstract
 
     public function testPublishPage()
     {
-        $this->seed( \Database\Seeders\CmsSeeder::class );
         $page = Page::where( 'name', 'Hidden' )->first();
 
         $response = CmsServer::actingAs($this->user)->tool( \Aimeos\Cms\Tools\PublishPage::class, [
@@ -317,7 +317,6 @@ class PageToolsTest extends McpTestAbstract
 
     public function testPublishPageMultiple()
     {
-        $this->seed( \Database\Seeders\CmsSeeder::class );
         $pages = Page::whereIn( 'name', ['Home', 'Blog'] )->pluck( 'id' )->all();
 
         $response = CmsServer::actingAs($this->user)->tool( \Aimeos\Cms\Tools\PublishPage::class, [
@@ -330,7 +329,6 @@ class PageToolsTest extends McpTestAbstract
 
     public function testPublishPageScheduled()
     {
-        $this->seed( \Database\Seeders\CmsSeeder::class );
         $page = Page::where( 'name', 'Hidden' )->first();
 
         $response = CmsServer::actingAs($this->user)->tool( \Aimeos\Cms\Tools\PublishPage::class, [
@@ -344,7 +342,6 @@ class PageToolsTest extends McpTestAbstract
 
     public function testDropPage()
     {
-        $this->seed( \Database\Seeders\CmsSeeder::class );
         $page = Page::where( 'name', 'Dev' )->first();
 
         $response = CmsServer::actingAs($this->user)->tool( \Aimeos\Cms\Tools\DropPage::class, [
@@ -368,7 +365,6 @@ class PageToolsTest extends McpTestAbstract
 
     public function testRestorePage()
     {
-        $this->seed( \Database\Seeders\CmsSeeder::class );
         $page = Page::where( 'name', 'Dev' )->first();
         $page->delete();
 
@@ -383,7 +379,6 @@ class PageToolsTest extends McpTestAbstract
 
     public function testRestorePageNotDeleted()
     {
-        $this->seed( \Database\Seeders\CmsSeeder::class );
         $page = Page::where( 'name', 'Home' )->first();
 
         $response = CmsServer::actingAs($this->user)->tool( \Aimeos\Cms\Tools\RestorePage::class, [
@@ -396,7 +391,6 @@ class PageToolsTest extends McpTestAbstract
 
     public function testMovePage()
     {
-        $this->seed( \Database\Seeders\CmsSeeder::class );
         $page = Page::where( 'name', 'Dev' )->first();
         $parent = Page::where( 'name', 'Blog' )->first();
 
