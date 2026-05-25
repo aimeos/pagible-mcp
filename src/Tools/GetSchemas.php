@@ -8,7 +8,6 @@
 namespace Aimeos\Cms\Tools;
 
 use Aimeos\Cms\Permission;
-use Aimeos\Cms\Schema;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 use Laravel\Mcp\Server\Attributes\Description;
 use Laravel\Mcp\Server\Attributes\Name;
@@ -33,7 +32,7 @@ class GetSchemas extends Tool
 
         foreach( ['content', 'meta', 'config'] as $section )
         {
-            foreach( Schema::schemas( section: $section ) as $type => $schema )
+            foreach( config( "cms.schemas.{$section}", [] ) as $type => $schema )
             {
                 $fields = [];
 

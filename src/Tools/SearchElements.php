@@ -46,31 +46,27 @@ class SearchElements extends Tool
         ] );
 
         $search = Element::search( mb_substr( trim( (string) ( $v['term'] ?? '' ) ), 0, 200 ) )
-            ->query( fn( $q ) => $q->select( 'cms_elements.id', 'cms_elements.created_at', 'cms_elements.updated_at', 'cms_elements.deleted_at', 'cms_elements.latest_id' )
-            ->with( ['latest' => fn( $q ) => $q->select( 'id', 'versionable_id', 'data', 'lang', 'editor' )] ) )
+            ->query( fn( $q ) => $q->with( 'latest' ) )
             ->searchFields( 'draft' )
             ->take( 25 );
 
-        $result = [];
-
-        foreach( Filter::elements( $search, $v )->get() as $item )
-        {
+        $result = Filter::elements( $search, $v )->get()->map( function( $item ) {
             /** @var Element $item */
-            $latest = $item->latest;
-            $data = $latest->data ?? new \stdClass();
-            $result[] = [
+            $data = $item->latest->data ?? new \stdClass();
+            return [
                 'id' => $item->id,
+                'data' => $data,
                 'type' => $data->type ?? null,
                 'name' => $data->name ?? null,
-                'lang' => $latest?->lang,
-                'editor' => $latest?->editor,
+                'lang' => $item->latest?->lang,
+                'editor' => $item->latest?->editor,
                 'deleted' => $item->trashed(),
                 'created_at' => $item->created_at?->format( 'Y-m-d H:i:s' ),
                 'updated_at' => $item->updated_at?->format( 'Y-m-d H:i:s' ),
             ];
-        }
+        } );
 
-        return Response::structured( ['elements' => $result] );
+        return Response::structured( ['elements' => $result->all()] );
     }
 
 

@@ -46,32 +46,30 @@ class SearchFiles extends Tool
         ] );
 
         $search = File::search( mb_substr( trim( (string) ( $v['term'] ?? '' ) ), 0, 200 ) )
-            ->query( fn( $q ) => $q->select( 'cms_files.id', 'cms_files.created_at', 'cms_files.updated_at', 'cms_files.deleted_at', 'cms_files.latest_id' )
-            ->with( ['latest' => fn( $q ) => $q->select( 'id', 'versionable_id', 'data', 'lang', 'editor' )] ) )
+            ->query( fn( $q ) => $q->with( 'latest' ) )
             ->searchFields( 'draft' )
             ->take( 25 );
 
-        $result = [];
-
-        foreach( Filter::files( $search, $v )->get() as $item )
-        {
+        $result = Filter::files( $search, $v )->get()->map( function( $item ) {
             /** @var File $item */
-            $latest = $item->latest;
-            $data = $latest->data ?? new \stdClass();
-            $result[] = [
+            $data = $item->latest->data ?? new \stdClass();
+            return [
                 'id' => $item->id,
                 'name' => $data->name ?? null,
                 'mime' => $data->mime ?? null,
+                'lang' => $item->latest?->lang,
                 'path' => $data->path ?? null,
-                'lang' => $latest?->lang,
-                'editor' => $latest?->editor,
+                'previews' => $data->previews ?? null,
+                'description' => $data->description ?? null,
+                'transcription' => $data->transcription ?? null,
+                'editor' => $item->latest?->editor,
                 'deleted' => $item->trashed(),
                 'created_at' => $item->created_at?->format( 'Y-m-d H:i:s' ),
                 'updated_at' => $item->updated_at?->format( 'Y-m-d H:i:s' ),
             ];
-        }
+        } );
 
-        return Response::structured( ['files' => $result] );
+        return Response::structured( ['files' => $result->all()] );
     }
 
 

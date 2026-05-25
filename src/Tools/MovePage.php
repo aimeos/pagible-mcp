@@ -11,7 +11,6 @@ use Aimeos\Cms\Utils;
 use Aimeos\Cms\Resource;
 use Aimeos\Cms\Permission;
 use Aimeos\Cms\Models\Page;
-use Aimeos\Nestedset\NestedSet;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Server\Attributes\Description;
 use Laravel\Mcp\Server\Attributes\Name;
@@ -44,10 +43,7 @@ class MovePage extends Tool
         ] );
 
         /** @var Page|null $page */
-        $page = Page::withTrashed()->select(
-            'id', 'tenant_id', 'parent_id', 'path', 'domain', 'name', 'editor',
-            'latest_id', 'deleted_at', NestedSet::LFT, NestedSet::RGT, NestedSet::DEPTH
-        )->find( $v['id'] );
+        $page = Page::withTrashed()->find( $v['id'] );
 
         if( !$page ) {
             return Response::structured( ['error' => 'Page not found.'] );
