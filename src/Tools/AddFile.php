@@ -49,38 +49,36 @@ class AddFile extends Tool
             return Response::structured( ['error' => sprintf( 'The URL "%s" must be a valid "http" or "https" URL.', $url )] );
         }
 
-        $editor = Utils::editor( $request->user() );
-        $versionId = ( new Version )->newUniqueId();
+        return Utils::transaction( function() use ( $url, $v, $request ) {
 
-        $file = new File();
-        $file->fill( array_intersect_key( $v, array_flip( ['name', 'lang'] ) ) );
+            $editor = Utils::editor( $request->user() );
+            $versionId = ( new Version )->newUniqueId();
 
-        if( isset( $v['description'] ) ) {
-            $file->description = $v['description'];
-        }
+            $file = new File();
+            $file->fill( array_intersect_key( $v, array_flip( ['name', 'lang'] ) ) );
 
-        $file->tenant_id = \Aimeos\Cms\Tenancy::value();
-        $file->path = $url;
-        $file->name = $file->name ?: substr( $url, 0, 255 );
-        $file->latest_id = $versionId;
-        $file->editor = $editor;
+            if( isset( $v['description'] ) ) {
+                $file->description = $v['description'];
+            }
 
-        // Fetch the file and generate previews outside the transaction to keep
-        // slow network and image work off the database connection.
-        try {
-            $file->addPreviews( $url );
-        } catch( \Throwable $t ) {
-            $file->removePreviews();
-            throw $t;
-        }
+            $file->tenant_id = \Aimeos\Cms\Tenancy::value();
+            $file->path = $url;
+            $file->name = $file->name ?: substr( $url, 0, 255 );
+            $file->latest_id = $versionId;
+            $file->editor = $editor;
 
-        if( !Utils::isValidMimetype( $file->mime ) )
-        {
-            $file->removePreviews();
-            return Response::structured( ['error' => sprintf( 'File type "%s" is not allowed.', $file->mime )] );
-        }
+            try {
+                $file->addPreviews( $url );
+            } catch( \Throwable $t ) {
+                $file->removePreviews();
+                throw $t;
+            }
 
-        return Utils::transaction( function() use ( $file, $versionId, $v, $editor ) {
+            if( !Utils::isValidMimetype( $file->mime ) )
+            {
+                $file->removePreviews();
+                return Response::structured( ['error' => sprintf( 'File type "%s" is not allowed.', $file->mime )] );
+            }
 
             $file->save();
 
