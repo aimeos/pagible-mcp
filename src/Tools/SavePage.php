@@ -57,17 +57,18 @@ class SavePage extends Tool
             'status' => 'integer|in:0,1,2',
             'cache' => 'integer|min:0',
             'related_id' => 'string|max:36',
-            'files' => 'array',
-            'files.*' => 'string|max:36',
-            'elements' => 'array',
-            'elements.*' => 'string|max:36',
             'latestId' => 'string|max:36',
         ], [
             'id.required' => 'You must specify the ID of the page to save.',
         ] );
 
         if( isset( $v['content'] ) ) {
-            $v['content'] = Validation::content( $v['content'], $v['type'] ?? null );
+            // Use the raw request input, not the validated copy: validate() rebuilds
+            // wildcard arrays via rule expansion, which materializes elements matched
+            // by content.*.id first and appends id-less elements at the end, scrambling
+            // the author's order. The raw input preserves it; Validation::content()
+            // still whitelists each element's keys.
+            $v['content'] = Validation::content( $request->get( 'content' ), $v['type'] ?? null );
         }
 
         if( isset( $v['title'] ) && !isset( $v['path'] ) ) {
@@ -82,12 +83,11 @@ class SavePage extends Tool
             $v['config'] = Validation::structured( $v['config'], 'config', new \stdClass(), $v['type'] ?? null );
         }
 
-        $input = array_diff_key( $v, array_flip( ['id', 'files', 'elements', 'latestId'] ) );
+        $input = array_diff_key( $v, array_flip( ['id', 'latestId'] ) );
 
         try {
             $page = Resource::savePage(
                 $v['id'], $input, $request->user(),
-                $v['files'] ?? null, $v['elements'] ?? null,
                 $v['latestId'] ?? null,
             );
         } catch( ModelNotFoundException $e ) {
@@ -166,12 +166,6 @@ class SavePage extends Tool
                 ->description( 'Cache lifetime in minutes.' ),
             'related_id' => $schema->string()
                 ->description( 'Translation ID linking pages with the same content in different languages.' ),
-            'files' => $schema->array()
-                ->items( $schema->string() )
-                ->description( 'Array of file UUIDs to attach to the version.' ),
-            'elements' => $schema->array()
-                ->items( $schema->string() )
-                ->description( 'Array of shared element UUIDs to attach to the version.' ),
             'latestId' => $schema->string()
                 ->description( 'Version ID the caller last retrieved. Enables conflict detection and three-way merge when another editor has saved in the meantime.' ),
         ];
