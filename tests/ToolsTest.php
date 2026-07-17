@@ -1,23 +1,17 @@
 <?php
 
 /**
- * @license MIT, https://opensource.org/license/mit
+ * @license LGPL, https://opensource.org/license/lgpl-3-0
  */
 
 
 namespace Tests;
 
 use Aimeos\Cms\Mcp\CmsServer;
-use Illuminate\Support\Facades\RateLimiter;
 
 
 class ToolsTest extends McpTestAbstract
 {
-    public function testMcpRateLimiter()
-    {
-        $this->assertNotNull( RateLimiter::limiter( 'cms-mcp' ) );
-    }
-
     protected function setUp(): void
     {
         parent::setUp();

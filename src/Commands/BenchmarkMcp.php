@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @license MIT, https://opensource.org/license/mit
+ * @license LGPL, https://opensource.org/license/lgpl-3-0
  */
 
 
@@ -156,11 +156,7 @@ class BenchmarkMcp extends Command
                     'name' => 'MCP Bench', 'title' => 'MCP Bench',
                     'path' => 'mcp-bench-' . Utils::uid(),
                     'content' => [['type' => 'text', 'data' => ['text' => 'Benchmark']]],
-                    'meta' => ['meta-tags' => [
-                        'type' => 'meta-tags',
-                        'data' => ['description' => 'Benchmark page'],
-                        'files' => [],
-                    ]],
+                    'meta' => ['meta-tags' => ['description' => 'Benchmark page']],
                 ] );
             }, tries: $tries );
 
